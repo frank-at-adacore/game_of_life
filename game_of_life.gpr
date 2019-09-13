@@ -1,0 +1,40 @@
+with "gtkada";
+
+project game_of_life is
+
+   for Source_Dirs use ("src");
+   for Object_Dir use "obj";
+   type Build_Kind is
+      ("static", "static-pic", "relocatable");
+   Library_Type : Build_Kind := external ("LIBRARY_TYPE");
+
+   case Library_Type is
+
+      when "static" =>
+         for Main use ("main", "main.adb");
+
+      when "static-pic" =>
+         for Main use ("main.adb");
+
+      when "relocatable" =>
+         for Main use ("main.adb");
+   end case;
+
+   package Pretty_Printer is
+      for Default_Switches ("ada") use ("-A2", "-A4", "-aL", "-nM", "--no-separate-is", "--separate-loop-then", "-c4", "-A1", "--par-threshold=1", "--call-threshold=1", "-c2");
+   end Pretty_Printer;
+
+   package Builder is
+      for Switches ("ada") use ("-g");
+   end Builder;
+
+   package Compiler is
+      for Switches ("ada") use ("-g", "-gnat12", "-gnateDSPARK_BODY_MODE=on");
+   end Compiler;
+
+   package Linker is
+      for Switches ("ada") use ("-g");
+   end Linker;
+
+end game_of_life;
+
