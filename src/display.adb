@@ -1,6 +1,8 @@
 with Ada.Strings.Unbounded;
 with Glib;
 with Glib.Main;
+with Gtk.Drawing_Area;
+with Gtk.Window;
 --
 with Base_Types;
 with Board_Pkg;
@@ -11,164 +13,198 @@ with Display_Buttons;
 with Population;
 --
 use type Ada.Strings.Unbounded.Unbounded_String;
+use type Base_Types.Column_Count_T;
 use type Base_Types.Row_Count_T;
 use type Board_Pkg.Cell_T;
+use type Glib.Gdouble;
 use type Glib.Gint;
 use type Glib.Guint;
+use type Glib.Main.G_Source_Id;
+use type Gtk.Drawing_Area.Gtk_Drawing_Area;
+use type Gtk.Window.Gtk_Window;
 
-package body Display with
-   Spark_Mode
-is
+package body Display is
 
    package Asu renames Ada.Strings.Unbounded;
 
-   Max_Generations : constant := 50;
-   type Generation_Index_T is mod Max_Generations;
-   Global_Board      : array (Generation_Index_T) of Board_Pkg.Board_T;
-   Global_Generation : Generation_Index_T := 0;
+   Global_Board : Board_Pkg.Board_T := Board_Pkg.Empty_Board;
 
+   -- determine cell colors based on user-selected color
+   procedure Initialize_Colors
+     (Alive_Color : out Cairo_Utilities.Color_T;
+      Dead_Color  : out Cairo_Utilities.Color_T) is
+   begin
+      Alive_Color := Display_Buttons.Selected_Color;
+      Dead_Color  := Cairo_Utilities.Complementary_Color (Alive_Color);
+      -- if the three values are similar, the complement is going to be almost
+      -- the same, making it hard to distinguish
+      if abs (Alive_Color.Red - Alive_Color.Blue) < 0.05
+        and then abs (Alive_Color.Red - Alive_Color.Green) < 0.05
+      then
+         if Dead_Color.Red < 0.5
+         then
+            Dead_Color.Red := Dead_Color.Red + 0.4;
+         else
+            Dead_Color.Red := Dead_Color.Red - 0.4;
+         end if;
+      end if;
+   end Initialize_Colors;
+
+   -- create a cell at the specified location with the specified color
    procedure Create_Cell
      (Board_Row    : in Base_Types.Row_T;
-      Board_Column : in Base_Types.Column_T) is
-      Scale : Glib.Guint := Display_Buttons.Scale_Value;
-      State : Board_Pkg.Cell_T;
-
-      Row    : Glib.Gdouble := Glib.Gdouble (Scale * Glib.Guint (Board_Row));
-      Column : Glib.Gdouble :=
+      Board_Column : in Base_Types.Column_T;
+      Color        : in Cairo_Utilities.Color_T) is
+      Scale : constant Glib.Guint := Display_Buttons.Scale_Value;
+      -- convert board row/column to appropriate coordinates
+      Row : constant Glib.Gdouble :=
+        Glib.Gdouble (Scale * Glib.Guint (Board_Row));
+      Column : constant Glib.Gdouble :=
         Glib.Gdouble (Scale * Glib.Guint (Board_Column));
+      -- determine height and width of cell
       Height : constant Glib.Guint := Scale * 9 / 10;
       Width  : constant Glib.Guint := Scale * 9 / 10;
-      Color  : Cairo_Utilities.Color_T;
-
    begin
-      State :=
-        Global_Board (Global_Generation).Get_State (Board_Row, Board_Column);
-
-      if State = Board_Pkg.Alive
-      then
-         Color := Cairo_Utilities.Color_Green;
-      else
-         Color := Cairo_Utilities.Color_Black;
-      end if;
-      Set_Size
-        (Width  => Glib.Gint (Column) + Glib.Gint (Width),
-         Height => Glib.Gint (Row) + Glib.Gint (Height));
+      -- draw box around coordinates with appropriate size and color
       Cairo_Utilities.Draw_Box
-        (Center_X => Column, Center_Y => Row, Height => Glib.Gdouble (Height),
-         Width    => Glib.Gdouble (Width), Color => Color);
-
+        (Center_X => Column,
+         Center_Y => Row,
+         Height   => Glib.Gdouble (Height),
+         Width    => Glib.Gdouble (Width),
+         Color    => Color);
    end Create_Cell;
 
+   -- redraw window
    procedure Refresh is
    begin
-      Main_Window.Queue_Draw;
+      Gtk.Window.Queue_Draw (Global_Main_Window);
    end Refresh;
 
-   Global_Timer_Msec : Integer := -1;
-   Global_Timer      : Glib.Main.G_Source_Id;
+   Global_Timer : Glib.Main.G_Source_Id;
 
-   procedure Update_Timer (Timeout : in Glib.Guint) is
+   -- update timer based on button value
+   procedure Update_Timer is
+      Timer : constant Glib.Guint := Display_Buttons.Timer_Value_In_Msec;
    begin
-      Debug.Print ("Display.Update_Timer" & Timeout'Img);
-      if Global_Timer_Msec /= Integer (Timeout)
-        and then Global_Timer_Msec <= Integer'Last
+      -- remove old timer if it is there
+      if Global_Timer /= Glib.Main.No_Source_Id
       then
-         if Global_Timer_Msec > 0
-         then
-            Glib.Main.Remove (Global_Timer);
-         end if;
-         Global_Timer_Msec := Integer (Timeout);
-         Global_Timer      := Glib.Main.Timeout_Add (Timeout, Update'Access);
+         Glib.Main.Remove (Global_Timer);
       end if;
+      -- set new timer based on button value
+      Global_Timer := Glib.Main.Timeout_Add (Timer, Update'Access);
    end Update_Timer;
 
-   Global_Da_Width         : Glib.Gint := -1;
-   Global_Da_Height        : Glib.Gint := -1;
-   Global_Requested_Width  : Glib.Gint := -1;
-   Global_Requested_Height : Glib.Gint := -1;
-
+   -- set size of window based on size of board
    procedure Set_Size
-     (Width  : Glib.Gint;
-      Height : Glib.Gint) is
+     (Rows    : Base_Types.Row_Count_T;
+      Columns : Base_Types.Column_Count_T) is
    begin
-      if Width > Global_Requested_Width
+      -- make sure drawing area is set
+      if Global_Drawing_Area /= null
       then
-         Global_Requested_Width := 3 * Width / 2;
-      end if;
-      if Height > Global_Requested_Height
-      then
-         Global_Requested_Height := 3 * Height / 2;
+         declare
+            -- get user-specified scaling factor
+            Scale : constant Display_Buttons.Scale_Value_T :=
+              Display_Buttons.Scale_Value;
+            -- get current drawing area width/height
+            Current_Width : constant Glib.Gint :=
+              Global_Drawing_Area.Get_Allocated_Width;
+            Current_Height : constant Glib.Gint :=
+              Global_Drawing_Area.Get_Allocated_Height;
+            -- get width/height we need to draw board
+            Requested_Width : constant Glib.Gint :=
+              Glib.Gint (Columns) * Glib.Gint (Scale);
+            Requested_Height : constant Glib.Gint :=
+              Glib.Gint (Rows) * Glib.Gint (Scale);
+         begin
+            -- if board is to short or narrow
+            if Requested_Width > Current_Width
+              or else Requested_Height > Current_Height
+            then
+               -- ask for more than we need so we don't keep resizing
+               Gtk.Drawing_Area.Set_Size_Request
+                 (Global_Drawing_Area, Requested_Width * 3 / 2,
+                  Requested_Height * 3 / 2);
+            end if;
+         end;
       end if;
    end Set_Size;
 
-   function Update_Board return Boolean is
-      Anything_Alive : Boolean := False;
+   -- update the board values
+   procedure Update_Board (Anything_Alive : out Boolean) is
+      Alive_Color, Dead_Color : Cairo_Utilities.Color_T;
+      Color                   : Cairo_Utilities.Color_T;
    begin
+      Anything_Alive := False;
       Cairo_Utilities.Clear_Surface;
-
-      if Global_Da_Width < Global_Requested_Width
-        or else Global_Da_Height < Global_Requested_Height
-      then
-         Global_Da_Width  := Global_Requested_Width;
-         Global_Da_Height := Global_Requested_Height;
-         Drawing_Area.Set_Size_Request (Global_Da_Width, Global_Da_Height);
-      end if;
-
-      for R in 1 .. Global_Board (Global_Generation).Rows
+      -- set size of board based on used rows/columns
+      Set_Size
+        (Rows    => Global_Board.Rows,
+         Columns => Global_Board.Columns);
+      -- set cell colors based on user-specified color
+      Initialize_Colors (Alive_Color, Dead_Color);
+      -- for each cell
+      for R in 1 .. Global_Board.Rows
       loop
-         for C in 1 .. Global_Board (Global_Generation).Columns
+         for C in 1 .. Global_Board.Columns
          loop
-            Create_Cell (R, C);
+            -- set color based on state of the cell
+            if Board_Pkg.Get_State (Global_Board, R, C) = Board_Pkg.Alive
+            then
+               Color := Alive_Color;
+            else
+               Color := Dead_Color;
+            end if;
+            -- create a cell of the necessary color
+            Create_Cell (R, C, Color);
          end loop;
       end loop;
-      if Global_Board (Global_Generation).Rows > 0
+      -- if board is populated
+      if Global_Board.Rows > 0 and Global_Board.Columns > 0
       then
-         Global_Generation := Global_Generation + 1;
-         Population.Generate
-           (Global_Board (Global_Generation - 1),
-            Global_Board (Global_Generation), Anything_Alive);
+         -- update cell states
+         Population.Generate (Global_Board, Anything_Alive);
       end if;
       Refresh;
-      return Anything_Alive;
    end Update_Board;
 
-   Global_Last_Timer    : Glib.Guint           := 0;
    Global_Last_Filename : Asu.Unbounded_String := Asu.Null_Unbounded_String;
 
+   -- update board based on specified file change OR current board display
    function Update return Boolean is
-      Timer    : Glib.Guint      := Display_Buttons.Timer_Value;
       Filename : constant String := Display_Buttons.Filename;
       Ret_Val  : Boolean         := True;
    begin
-      if Filename /= Asu.To_String (Global_Last_Filename)
+      -- only if window has been initialized
+      if Global_Main_Window /= null
       then
-         Global_Last_Filename := Asu.To_Unbounded_String (Filename);
-         Global_Last_Timer    := Timer;
-         Initialize (Filename, Timer);
-      elsif Timer /= Global_Last_Timer
-      then
-         Global_Last_Timer := Timer;
-         Update_Timer (Timer);
-      end if;
-      if Global_Last_Filename /= Asu.Null_Unbounded_String
-      then
-         Ret_Val := Update_Board;
+         -- if specified filename has changed
+         if Filename /= Asu.To_String (Global_Last_Filename)
+         then
+            -- save filename
+            Global_Last_Filename := Asu.To_Unbounded_String (Filename);
+            -- Reset board and load file
+            Board_Pkg.Clear (Global_Board);
+            Board_Pkg.Initialize.Populate_From_File (Global_Board, Filename);
+         end if;
+         -- reset timer
+         Update_Timer;
+         -- if the board is active, update the board
+         if Global_Last_Filename /= Asu.Null_Unbounded_String
+           and then Global_Board.Rows > 0 and then Global_Board.Columns > 0
+         then
+            Update_Board (Ret_Val);
+         end if;
       end if;
       return Ret_Val;
    end Update;
 
-   procedure Initialize
-     (Filename     : in String := "";
-      Timeout_Msec : in Glib.Guint) is
+   -- start timer
+   procedure Initialize is
    begin
-      Debug.Print ("Display.Initialize " & Filename & Timeout_Msec'Img);
-      Update_Timer (Timeout_Msec);
-      if Filename'Length > 0
-      then
-         Board_Pkg.Clear (Global_Board (0));
-         Global_Generation := 0;
-         Board_Pkg.Initialize.Populate_From_File (Global_Board (0), Filename);
-      end if;
+      Debug.Print ("Display.Initialize");
+      Update_Timer;
    end Initialize;
 
 end Display;

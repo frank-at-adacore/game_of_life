@@ -1,6 +1,5 @@
 with Board_Pkg;
 with Board_Pkg.Neighbors;
-use type Board_Pkg.Board_T;
 use type Board_Pkg.Cell_T;
 package body Population with
    Spark_Mode
@@ -27,6 +26,7 @@ is
            Board_Pkg.Dead
          else State));
 
+-- determine state of cell at position row/column
    function New_Cell_State
      (Board  : Board_Pkg.Board_T;
       Row    : Base_Types.Row_T;
@@ -34,69 +34,47 @@ is
      return Board_Pkg.Cell_T is
      (Alive_Or_Dead
         (Board.Get_State (Row, Column),
-         Board_Pkg.Neighbors.Alive_Count (Board, Row, Column))) with
-      Pre => Board.Rows > 0 and then Board.Columns > 0
-      and then Row <= Board.Rows + 1 and then Column <= Board.Columns - 1
-      and then Base_Types.Pred (Row) <= Board.Rows
-      and then Base_Types.Pred (Column) <= Board.Columns
-      and then Base_Types.Succ (Row) <= Board.Rows + 2
-      and then Base_Types.Succ (Column) <= Board.Columns + 2
-      and then Base_Types.Pred (Row) <= Base_Types.Succ (Row)
-      and then Base_Types.Pred (Column) <= Base_Types.Succ (Column);
+         Board_Pkg.Neighbors.Alive_Count (Board, Row, Column)));
 
-   procedure Update_New_Cell
-     (Old_Board   : in     Board_Pkg.Board_T;
-      New_Board   : in out Board_Pkg.Board_T;
-      Row         : in     Base_Types.Row_T;
-      Column      : in     Base_Types.Column_T;
-      State       : in     Board_Pkg.Cell_T;
-      Still_Alive : in out Boolean) with
-      Pre  => Old_Board.Rows > 0 and Old_Board.Columns > 0,
-      Post =>
-      (if State = Board_Pkg.Alive then
-         (New_Board.Get_State (Row, Column) = Board_Pkg.Alive
-          and then Still_Alive)
-       elsif Row <= Old_Board.Rows and Column <= Old_Board.Columns then
-         (New_Board.Get_State (Row, Column) = State and
-          Still_Alive = Still_Alive'Old)
-       else New_Board = New_Board'Old and Still_Alive = Still_Alive'Old);
-
-   procedure Update_New_Cell
-   -- if the new state is Alive, then set the cell and indicate the board has
-   -- live cells only set a cell to dead if it is within the boundaries of the
-   -- existing board (any cell outside the boundaries is dead by definition
-     (Old_Board   : in     Board_Pkg.Board_T;
-      New_Board   : in out Board_Pkg.Board_T;
-      Row         : in     Base_Types.Row_T;
-      Column      : in     Base_Types.Column_T;
-      State       : in     Board_Pkg.Cell_T;
-      Still_Alive : in out Boolean) is
-   begin
-      if State = Board_Pkg.Alive
-      then
-         New_Board.Set_State (Row => Row, Column => Column, State => State);
-         Still_Alive := True;
-      elsif Row <= Old_Board.Rows and then Column <= Old_Board.Columns
-      then
-         New_Board.Set_State (Row => Row, Column => Column, State => State);
-      end if;
-   end Update_New_Cell;
-
+   -- create a new board based on the state of the old board Still_Alive is
+   -- TRUE if any cell remains alive
    procedure Generate
-     (Old_Board   : in     Board_Pkg.Board_T;
-      New_Board   : in out Board_Pkg.Board_T;
+     (Board       : in out Board_Pkg.Board_T;
       Still_Alive :    out Boolean) is
-      State : Board_Pkg.Cell_T;
+      -- copy incoming board to indicate original state
+      Old_Board         : constant Board_Pkg.Board_T := Board;
+      State             : Board_Pkg.Cell_T;
+      Last_Row_To_Check : constant Base_Types.Row_T  :=
+        Base_Types.Succ (Old_Board.Rows);
+      Last_Column_To_Check : constant Base_Types.Column_T :=
+        Base_Types.Succ (Old_Board.Columns);
    begin
       Still_Alive := False;
-      for R in 1 .. Base_Types.Succ (Old_Board.Rows)
+      -- reset output board to ampty
+      Board := Board_Pkg.Empty_Board;
+      -- we don't just loop over existing rows, because alive cells at the edge
+      -- of the board can great new cells in the row or column just past the
+      -- edge - so we need to check those rows/columns as well
+      for R in 1 .. Last_Row_To_Check
       loop
-         pragma ASSERT (R <= Old_Board.Rows + 1);
-         for C in 1 .. Base_Types.Succ (Old_Board.Columns)
+         for C in 1 .. Last_Column_To_Check
          loop
-            pragma ASSERT (C <= Old_Board.Columns + 1);
+            -- determine state of cell based on neighbors in the old board
             State := New_Cell_State (Old_Board, R, C);
-            Update_New_Cell (Old_Board, New_Board, R, C, State, Still_Alive);
+            -- if the state is Alive we will update the board (this may cause
+            -- the board to grow) if the cell is Dead, we only update the board
+            -- if the row/column is in the old range - we don't want the board
+            -- to grow for a dead cell
+            if State = Board_Pkg.Alive
+              or else (R <= Old_Board.Rows and then C <= Old_Board.Columns)
+            then
+               Board.Set_State
+                 (Row    => R,
+                  Column => C,
+                  State  => State);
+               -- update flag indicating if anything is alive
+               Still_Alive := Still_Alive or else State = Board_Pkg.Alive;
+            end if;
          end loop;
       end loop;
 

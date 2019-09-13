@@ -2,30 +2,37 @@ package body Board_Pkg with
    Spark_Mode
 is
 
+   -- updated postcondition: if we're calling this function on a row/column,
+   -- then update the used rows/columns based on the input values if necessary
    procedure Set_State
      (Board  : in out Board_T;
       Row    : in     Base_Types.Row_T;
       Column : in     Base_Types.Column_T;
       State  : in     Cell_T) with
-      -- CodePeer: says redundant conversion?
-      Refined_Post => Board.Matrix (Row) (Segment_Index (Column))
-        (Bit_Index (Column)) =
-      Boolean_T (State = Alive) and
-      Board.Rows = Base_Types.Row_Count_T'Max (Board.Rows, Row) and
-      Board.Columns = Base_Types.Column_Count_T'Max (Board.Columns, Column)
+      Refined_Post => Board.Matrix (Row) (Column) = State and
+      (if Row > Board'Old.Actual_Rows then Board.Actual_Rows = Row
+       else Board'Old.Actual_Rows = Board.Actual_Rows) and
+      (if Column > Board'Old.Actual_Columns then Board.Actual_Columns = Column
+       else Board'Old.Actual_Columns = Board.Actual_Columns)
    is
-      Segment : Segment_Index_T := Segment_Index (Column);
-      Bit     : Bit_Index_T     := Bit_Index (Column);
    begin
-      Board.Matrix (Row) (Segment) (Bit) := Boolean_T (State = Alive);
-      Board.Actual_Rows := Base_Types.Row_Count_T'Max (Board.Actual_Rows, Row);
-      Board.Actual_Columns               :=
-        Base_Types.Column_Count_T'Max (Board.Actual_Columns, Column);
+      -- set cell to new state
+      Board.Matrix (Row) (Column) := State;
+      -- update used rows/columns to ensure this row/column is included
+      if Row > Board.Actual_Rows
+      then
+         Board.Actual_Rows := Row;
+      end if;
+      if Column >= Board.Actual_Columns
+      then
+         Board.Actual_Columns := Column;
+      end if;
    end Set_State;
 
+   -- reset board
    procedure Clear (Board : out Board_T) is
-      Empty_Board : Board_T;
    begin
       Board := Empty_Board;
    end Clear;
+
 end Board_Pkg;

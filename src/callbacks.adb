@@ -3,10 +3,11 @@ with Gtk.Main;
 with Cairo_Utilities;
 with Debug;
 
-package body Callbacks with
-   Spark_Mode is
+package body Callbacks is
 
+   -- Called when 'quit' is requested
    procedure Main_Quit (Self : access Gtk.Widget.Gtk_Widget_Record'Class) is
+      pragma UNREFERENCED (Self);
    begin
       Debug.Print ("Callbacks.Main_Quit");
       Cairo_Utilities.Destroy_Surface;
@@ -20,16 +21,19 @@ package body Callbacks with
      (Self : access Gtk.Widget.Gtk_Widget_Record'Class;
       Cr   : Cairo.Cairo_Context)
      return Boolean is
+      pragma UNREFERENCED (Self);
    begin
       Cairo_Utilities.Set_Source (Cr);
       Cairo_Utilities.Paint (Cr);
       return False;
    end Draw_Cb;
 
+   -- Create a new surface of the appropriate size to store our scribbles
    function Configure_Event_Cb
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
       Event : Gdk.Event.Gdk_Event_Configure)
      return Boolean is
+      pragma UNREFERENCED (Event);
    begin
       Debug.Print ("Callbacks.Configure_Event_Cb");
       Cairo_Utilities.Destroy_Surface;

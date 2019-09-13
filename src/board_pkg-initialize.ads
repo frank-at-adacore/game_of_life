@@ -1,9 +1,12 @@
 package Board_Pkg.Initialize with
-   Spark_Mode is
+   Spark_Mode
+is
 
-   procedure Populate_From_User (Board : in out Board_T);
+   -- subprogram that reads board data from standard input
+   procedure Populate_From_User (Board : out Board_T);
+   -- subprogram that reads board data from a file
    procedure Populate_From_File
-     (Board    : in out Board_T;
+     (Board    :    out Board_T;
       Filename : in     String);
 
 end Board_Pkg.Initialize;

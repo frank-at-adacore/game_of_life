@@ -6,10 +6,11 @@ package Population with
    Spark_Mode
 is
 
+   -- create a new board based on the state of the old board Still_Alive is
+   -- TRUE if any cell remains alive
    procedure Generate
-     (Old_Board   : in     Board_Pkg.Board_T;
-      New_Board   : in out Board_Pkg.Board_T;
+     (Board       : in out Board_Pkg.Board_T;
       Still_Alive :    out Boolean) with
-      Pre => Old_Board.Rows > 0 and then Old_Board.Columns > 0;
+      Pre => Board.Rows > 0 and then Board.Columns > 0;
 
 end Population;

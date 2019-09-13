@@ -1,7 +1,8 @@
 package Debug with
-   Spark_Mode is
+   Spark_Mode
+is
 
-   Turn_On : Boolean := False;
+   -- print STR somewhere we can see it
    procedure Print (Str : String);
 
 end Debug;
