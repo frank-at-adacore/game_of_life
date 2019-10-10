@@ -10,7 +10,7 @@ This GNAT Project builds and executes with the GNAT Community Edition (https://w
 ### Build an executable
 You can either open the .gpr file using GPS and built interactively, or you can issue the command:
 ```
-gprbuild -P game_of_life.gpr -Xlibrary_type=static
+gprbuild -P game_of_life.gpr -XLIBRARY_TYPE=static
 ```
 This will create the executable in the 'obj' subfolder
 
