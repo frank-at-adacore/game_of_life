@@ -2,7 +2,7 @@ with Board_Pkg;
 with Board_Pkg.Neighbors;
 use type Board_Pkg.Cell_T;
 package body Population with
-   Spark_Mode
+   SPARK_Mode
 is
 
    Give_Birth : constant := 3;
@@ -18,7 +18,7 @@ is
    function Alive_Or_Dead
      (State     : Board_Pkg.Cell_T;
       Neighbors : Integer)
-     return Board_Pkg.Cell_T is
+      return Board_Pkg.Cell_T is
      (if State = Board_Pkg.Dead then
         (if Neighbors = Give_Birth then Board_Pkg.Alive else State)
       else
@@ -31,13 +31,14 @@ is
      (Board  : Board_Pkg.Board_T;
       Row    : Base_Types.Row_T;
       Column : Base_Types.Column_T)
-     return Board_Pkg.Cell_T is
+      return Board_Pkg.Cell_T is
      (Alive_Or_Dead
         (Board.Get_State (Row, Column),
-         Board_Pkg.Neighbors.Alive_Count (Board, Row, Column)));
+         Board_Pkg.Neighbors.Alive_Count (Board, Row, Column))) with
+      Pre => Board.Rows > 0 and Board.Columns > 0;
 
-   -- create a new board based on the state of the old board Still_Alive is
-   -- TRUE if any cell remains alive
+      -- create a new board based on the state of the old board Still_Alive is
+      -- TRUE if any cell remains alive
    procedure Generate
      (Board       : in out Board_Pkg.Board_T;
       Still_Alive :    out Boolean) is

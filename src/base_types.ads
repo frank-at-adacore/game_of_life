@@ -1,9 +1,9 @@
 package Base_Types with
-   Spark_Mode
+   SPARK_Mode
 is
 
-   Max_Columns : constant := 1000;
-   Max_Rows    : constant := 1000;
+   Max_Columns : constant := 1_000;
+   Max_Rows    : constant := 1_000;
 
    -- count allows 0; subtype is an array index
    type Row_Count_T is range -1 .. Max_Rows + 2;
@@ -13,42 +13,18 @@ is
    type Column_Count_T is range -1 .. Max_Columns + 2;
    subtype Column_T is Column_Count_T range 1 .. Column_Count_T'Last - 2;
 
-   -- Function that will always return a valid value for 'pred
-   generic
-      type Index_T is range <>;
-   function Safe_Pred
-     (Index : Index_T)
-     return Index_T with
-      Post =>
-      (if Index > Index_T'First then Safe_Pred'Result = Index - 1
-       else Safe_Pred'Result = Index_T'First);
-   function Safe_Pred
-     (Index : Index_T)
-     return Index_T is
-     (if Index > Index_T'First then Index - 1 else Index_T'First);
-
-   -- Function that will always return a valid value for 'succ
-   generic
-      type Index_T is range <>;
-   function Safe_Succ
-     (Index : Index_T)
-     return Index_T with
-      Post =>
-      (if Index < Index_T'Last then Safe_Succ'Result = Index + 1
-       else Safe_Succ'Result = Index_T'Last);
-   function Safe_Succ
-     (Index : Index_T)
-     return Index_T is
-     (if Index < Index_T'Last then Index + 1 else Index_T'Last);
-
-   -- get previous row if possible, otherwise use this row
-   function Pred is new Safe_Pred (Row_T);
    -- get next row if possible, otherwise use this row
-   function Succ is new Safe_Succ (Row_T);
+   function Succ
+     (Index : Row_Count_T)
+      return Row_T is
+     (if Index in Row_T and Index < Row_T'Last then Index + 1
+      else Row_T'Last);
 
-   -- get previous column if possible, otherwise use this column
-   function Pred is new Safe_Pred (Column_T);
-   -- get next column if possible, otherwise use this column
-   function Succ is new Safe_Succ (Column_T);
+      -- get next column if possible, otherwise use this column
+   function Succ
+     (Index : Column_Count_T)
+      return Column_T is
+     (if Index in Column_T and Index < Column_T'Last then Index + 1
+      else Column_T'Last);
 
 end Base_Types;

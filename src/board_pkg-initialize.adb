@@ -1,6 +1,6 @@
-with Ada.Text_Io;
+with Ada.Text_IO;
 package body Board_Pkg.Initialize with
-   Spark_Mode
+   SPARK_Mode
 is
 
    subtype String_Length_T is
@@ -26,48 +26,27 @@ is
       end loop;
    end Add_Row;
 
-   -- read from standard input until end character is found
-   procedure Populate_From_User (Board : out Board_T) is
-      Str    : Constrained_String_T;
-      Length : String_Length_T;
-      Row    : Base_Types.Row_Count_T := 0;
-   begin
-      Board.Clear;
-      Ada.Text_Io.Put_Line ("Any non-blank character is 'live'");
-      Ada.Text_Io.Put_Line ("('~' in the first column ends input)");
-      loop
-         exit when Row = Base_Types.Row_Count_T'Last;
-         Ada.Text_Io.Get_Line (Str, Length);
-         pragma ANNOTATE (Codepeer, Intentional, "range check",
-            "string length will never be > 1000");
-         -- stop when we see "~" in the first column
-         exit when Length > 0 and then Str (1) = '~';
-         Row := Row + 1;
-         Add_Row (Board, Row, Str, Length);
-      end loop;
-   end Populate_From_User;
-
    -- read from specified file
    procedure Populate_From_File
      (Board    :    out Board_T;
       Filename : in     String) is
-      File   : Ada.Text_Io.File_Type;
+      File   : Ada.Text_IO.File_Type;
       Str    : Constrained_String_T;
       Length : String_Length_T;
-      Row    : Base_Types.Row_Count_T := 0;
+      Row    : Base_Types.Row_Count_T := 1;
    begin
       Board.Clear;
-      Ada.Text_Io.Open (File, Ada.Text_Io.In_File, Filename);
-      while not Ada.Text_Io.End_Of_File (File)
+      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Filename);
+      while not Ada.Text_IO.End_Of_File (File) and then Row in Base_Types.Row_T
       loop
          exit when Row = Base_Types.Row_Count_T'Last;
-         Ada.Text_Io.Get_Line (File, Str, Length);
-         pragma ANNOTATE (Codepeer, Intentional, "range check",
+         Ada.Text_IO.Get_Line (File, Str, Length);
+         pragma Annotate (Codepeer, Intentional, "range check",
             "string length will never be > 1000");
-         Row := Row + 1;
          Add_Row (Board, Row, Str, Length);
+         Row := Row + 1;
       end loop;
-      Ada.Text_Io.Close (File);
+      Ada.Text_IO.Close (File);
    end Populate_From_File;
 
 end Board_Pkg.Initialize;
