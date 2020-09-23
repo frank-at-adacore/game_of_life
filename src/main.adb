@@ -87,20 +87,14 @@ begin
                   -- called.
                   Gtk.Main.Main;
 
-               else
-                  Debug.Print ("failed to create the buttons");
                end if;
 
-            else
-               Debug.Print ("failed to create the drawing area");
+
             end if;
-         else
-            Debug.Print ("failed to create the frame");
+
          end if;
-      else
-         Debug.Print ("failed to create the box");
+
       end if;
-   else
-      Debug.Print ("Failed to create the window");
+
    end if;
 end Main;

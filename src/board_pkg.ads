@@ -36,13 +36,6 @@ is
       (if Column > Columns (Board'Old) then Column = Columns (Board)) and
       (if Row > Rows (Board'Old) then Row = Rows (Board));
 
-      -- return True if every used cell in the two boards match (i.e, used
-      -- rows/columns must match, and only compare cells up to the used
-      -- row/column)
-   function "="
-     (Left, Right : Board_T)
-      return Boolean;
-
    -- reset board
    procedure Clear (Board : out Board_T) with
       Post => Board.Rows = 0 and then Board.Columns = 0;

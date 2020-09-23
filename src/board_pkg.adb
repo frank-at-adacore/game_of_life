@@ -35,40 +35,4 @@ is
       Board := Empty_Board;
    end Clear;
 
-   function "="
-     (Left, Right : Board_T)
-      return Boolean is
-   begin
-      if Left.Rows /= Right.Rows
-      then
-         return False;
-      elsif Left.Columns /= Right.Columns
-      then
-         return False;
-      elsif Left.Rows = 0 and then Right.Rows = 0
-      then
-         return True;
-      elsif Left.Rows in Matrix_T'Range
-      then
-         for R in 1 .. Left.Rows
-         loop
-            if Left.Columns in Left.Matrix (R)'Range
-            then
-               for C in 1 .. Left.Columns
-               loop
-                  if Left.Matrix (R) (C) /= Right.Matrix (R) (C)
-                  then
-                     return False;
-                  end if;
-               end loop;
-            else
-               return False;
-            end if;
-         end loop;
-         return True;
-      else
-         return False;
-      end if;
-   end "=";
-
 end Board_Pkg;

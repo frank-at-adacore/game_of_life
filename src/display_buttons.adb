@@ -49,12 +49,13 @@ package body Display_Buttons is
       then
          return Global_File_Chooser.Get_Filename;
       end if;
-      return "";
+      return ""; -- no file selected
    end Filename;
 
    -- create file chooser button
    procedure Create_File_Chooser_Button (Success : out Boolean) is
    begin
+      Success := False;
       Global_File_Chooser :=
         Gtk.File_Chooser_Button.Gtk_File_Chooser_Button_New
           ("Select starting file", Gtk.File_Chooser.Action_Open);
@@ -66,15 +67,13 @@ package body Display_Buttons is
          Gtk.File_Chooser_Button.Set_Width_Chars (Global_File_Chooser, 80);
          Gtk.File_Chooser_Button.Set_Tooltip_Text
            (Global_File_Chooser, "Select file containing initial setup");
-      else -- otherwise failure condition
-         Success := False;
-         Debug.Print ("create_file_chooser_button failed");
       end if;
    end Create_File_Chooser_Button;
 
    -- create timer button
    procedure Create_Timer_Button (Success : out Boolean) is
    begin
+               Success := False;
       Global_Timer_Button :=
         Gtk.Spin_Button.Gtk_Spin_Button_New_With_Range (0.1, 10.0, 0.1);
       -- if button was created
@@ -85,9 +84,6 @@ package body Display_Buttons is
          Gtk.Spin_Button.Set_Value (Global_Timer_Button, 0.5);
          Gtk.Spin_Button.Set_Tooltip_Text
            (Global_Timer_Button, "Time (in seconds) between generations");
-      else -- otherwise failure condition
-         Success := False;
-         Debug.Print ("create_timer_button failed");
       end if;
    end Create_Timer_Button;
 
@@ -122,6 +118,7 @@ package body Display_Buttons is
       Global => Global_Scale_Button
    is
    begin
+      Success := False;
       -- create button
       Global_Scale_Button :=
         Gtk.Spin_Button.Gtk_Spin_Button_New_With_Range (5.0, 100.0, 1.0);
@@ -133,9 +130,6 @@ package body Display_Buttons is
          Gtk.Spin_Button.Set_Value (Global_Scale_Button, 25.0);
          Gtk.Spin_Button.Set_Tooltip_Text
            (Global_Scale_Button, "Scaling factor for cells (5..100)");
-      else -- otherwise failure condition
-         Success := False;
-         Debug.Print ("create_scale_button failed");
       end if;
    end Create_Scale_Button;
 
@@ -179,6 +173,7 @@ package body Display_Buttons is
    -- create color button
    procedure Create_Color_Button (Success : out Boolean) is
    begin
+      Success := False;
       Global_Color_Button := Gtk.Color_Button.Gtk_Color_Button_New;
       -- if button was created
       if Global_Color_Button /= null
@@ -190,9 +185,6 @@ package body Display_Buttons is
             Cairo_Utilities.Convert (Cairo_Utilities.Color_Green));
          Gtk.Color_Button.Set_Tooltip_Text
            (Global_Color_Button, "Color of 'live' cells");
-      else -- otherwise failure condition
-         Success := False;
-         Debug.Print ("create_color_button failed");
       end if;
 
    end Create_Color_Button;
@@ -262,8 +254,6 @@ package body Display_Buttons is
             Gtk.Grid.Set_Vexpand (Grid, False);
          end if;
          Widget := Gtk.Widget.Gtk_Widget (Grid);
-      else -- otherwise failure condition
-         Debug.Print ("create grid failed");
       end if;
    end Create_Widget;
 
