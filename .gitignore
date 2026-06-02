@@ -1,1 +1,17 @@
 obj/
+
+# Block the massive build directory
+target/
+
+# Block local IDE/editor configurations
+.idea/
+.vscode/
+*.iml
+
+# Block OS-specific junk
+Thumbs.db
+.DS_Store
+
+# Block backup/temporary files
+*.rs.bk
+*.swp
